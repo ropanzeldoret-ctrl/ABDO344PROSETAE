@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eFOOTBALL ABDO 344 PRO - LIVE</title>
+    <style>
+        :root { --gold: #ffd700; --dark: #0a0a0a; --glass: rgba(0, 0, 0, 0.85); --news-bg: #cc0000; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Cairo', sans-serif; color: white; }
+        #news-ticker { position: fixed; top: 0; width: 100%; background: var(--news-bg); padding: 10px 0; z-index: 1000; border-bottom: 2px solid var(--gold); }
+        .ticker-move { display: inline-block; white-space: nowrap; animation: ticker 40s linear infinite; font-weight: bold; }
+        @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        #main-pro-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100vh; background: radial-gradient(circle, #1a472a, #000); display: flex; justify-content: space-between; align-items: center; padding: 60px 40px; box-sizing: border-box; z-index: 500; }
+        .side-panel { width: 28%; height: 82vh; background: var(--glass); border: 1px solid var(--gold); border-radius: 15px; padding: 20px; overflow-y: auto; backdrop-filter: blur(15px); }
+        .item-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 15px; border-right: 5px solid var(--gold); }
+        .play-btn { background: var(--gold); color: black; border: none; padding: 20px; font-size: 25px; font-weight: 900; border-radius: 50px; cursor: pointer; transition: 0.3s; width: 85%; box-shadow: 0 10px 30px rgba(255,215,0,0.3); }
+        #scoreboard { position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: var(--glass); padding: 10px 50px; border-radius: 0 0 20px 20px; border: 2px solid var(--gold); display: none; z-index: 800; font-size: 24px; }
+        canvas { display: none; margin: 0 auto; background: #1a472a; }
+    </style>
+</head>
+<body>
+
+<div id="news-ticker">
+    <div class="ticker-move">
+        • عاجل: ميسي يؤكد استمراره حتى 2026 • ريال مدريد يحسم صفقة دفاعية جديدة • الهلال يتصدر دوري روشن • إصابة مبابي طفيفة • برشلونة يجدد عقد يامال • مان سيتي يراقب موسيالا •
+    </div>
+</div>
+
+<div id="main-pro-ui">
+    <div class="side-panel">
+        <h2 style="color: var(--gold);">🔥 أخبار العالـم</h2>
+        <div class="item-card"><h4>سوق الانتقالات</h4><p>تحديثات الميركاتو الشتوي 2025 حصرياً.</p></div>
+        <div class="item-card"><h4>إصابات</h4><p>رسمياً غياب كورتوا عن مواجهة الأبطال القادمة.</p></div>
+    </div>
+    <div style="width: 40%; text-align: center;">
+        <h1 style="font-size: 60px; color: var(--gold); margin: 0;">ABDO 344 PRO</h1>
+        <p style="color: #aaa; margin-bottom: 40px;">النسخة الاحترافية المباشرة</p>
+        <button class="play-btn" onclick="startGame('REAL MADRID', '#fff')">العب الآن</button>
+    </div>
+    <div class="side-panel">
+        <h2 style="color: var(--gold);">📅 مباريات اليوم</h2>
+        <div class="item-card"><h4>الريال × ليفربول</h4><p>22:00 | تشكيل: فينيسيوس، صلاح</p></div>
+    </div>
+</div>
+
+<div id="scoreboard">
+    <span id="pName">TEAM</span> <span id="s1" style="color:var(--gold)">0</span> - <span id="s2">0</span> CPU
+</div>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let gameActive = false, score = {p:0, c:0}, players = [], keys = {}, teamCol = '#fff';
+const ball = { x: 550, y: 300, vx: 0, vy: 0, r: 8, owner: null, lock: 0 };
+
+window.onkeydown = (e) => { 
+    keys[e.code] = true; 
+    if(e.code==='Digit1')pass(); if(e.code==='Digit2')shoot(); if(e.code==='Digit3')tackle(); if(e.code==='Space')switchPlayer(); 
+};
+window.onkeyup = (e) => { keys[e.code] = false; };
+
+function startGame(team, color) {
+    teamCol = color;
+    document.getElementById('main-pro-ui').style.display = 'none';
+    document.getElementById('scoreboard').style.display = 'block';
+    document.getElementById('pName').innerText = team;
+    canvas.style.display = 'block';
+    canvas.width = 1100; canvas.height = 600;
+    init(); gameActive = true; loop();
+}
+
+function init() {
+    players = [];
+    const pPos = [{x:80,y:300,n:'GK'}, {x:300,y:150,n:'DF'}, {x:300,y:450,n:'MD'}, {x:530,y:300,n:'ABDO'}];
+    pPos.forEach((p, i) => {
+        players.push({ x: p.x, y: p.y, ox: p.x, oy: p.y, team: 'p', name: p.n, isUser: i===3, tackling: 0 });
+        players.push({ x: 1100-p.x, y: p.y, ox: 1100-p.x, oy: p.y, team: 'c', name: 'CPU', tackling: 0 });
+    });
+}
+
+function switchPlayer() {
+    let pT = players.filter(p => p.team === 'p' && p.name !== 'GK');
+    pT.forEach(p => p.isUser = false);
+    pT.reduce((p, c) => Math.hypot(c.x-ball.x, c.y-ball.y) < Math.hypot(p.x-ball.x, p.y-ball.y) ? c : p).isUser = true;
+}
+
+function pass() { if(ball.owner && ball.owner.team==='p'){ let t=players.find(p=>p.team==='p'&&p!==ball.owner); let a=Math.atan2(t.y-ball.y,t.x-ball.x); ball.owner=null; ball.vx=Math.cos(a)*20; ball.vy=Math.sin(a)*20; ball.lock=25; } }
+function shoot() { if(ball.owner && ball.owner.team==='p'){ ball.owner=null; ball.vx=32; ball.vy=(Math.random()-0.5)*4; ball.lock=35; } }
+function tackle() { let u=players.find(p=>p.isUser); if(u&&u.tackling===0){ u.tackling=20; let a=Math.atan2(ball.y-u.y,ball.x-u.x); u.vx=Math.cos(a)*15; u.vy=Math.sin(a)*15; } }
+
+function loop() {
+    if(!gameActive) return;
+    let u = players.find(p => p.isUser);
+    players.forEach(p => {
+        if(p.name === 'GK') {
+            p.y += (ball.y - p.y) * 0.15; if(p.y<230)p.y=230; if(p.y>370)p.y=370;
+            if(Math.hypot(p.x-ball.x, p.y-ball.y)<45){ ball.owner=null; ball.vx=(p.team==='p'?18:-18); ball.lock=20; }
+        } else if(p.team === 'c') {
+            let d = Math.hypot(p.x-ball.x, p.y-ball.y);
+            if(d<350 && !ball.owner){ p.x+=(ball.x-p.x)*0.04; p.y+=(ball.y-p.y)*0.04; }
+            else if(ball.owner===p){ p.x-=4; if(p.x<200)shoot(); }
+        }
+    });
+    if(u&&u.tackling>0){ u.x+=u.vx; u.y+=u.vy; u.tackling--; }
+    else if(u){ if(keys['ArrowUp'])u.y-=6; if(keys['ArrowDown'])u.y+=6; if(keys['ArrowLeft'])u.x-=6; if(keys['ArrowRight'])u.x+=6; }
+    if(ball.lock>0) ball.lock--;
+    if(!ball.owner && ball.lock===0) players.forEach(p => { if(Math.hypot(p.x-ball.x,p.y-ball.y)<25) ball.owner=p; });
+    if(ball.owner){ ball.x=ball.owner.x+(ball.owner.team==='p'?12:-12); ball.y=ball.owner.y; }
+    else { ball.x+=ball.vx; ball.y+=ball.vy; ball.vx*=0.985; ball.vy*=0.985; }
+    if(ball.y<50 || ball.y>550 || ball.x<50 || ball.x > 1050) {
+        if(ball.y>240 && ball.y<360 && (ball.x<50 || ball.x>1050)) { ball.x>550?score.p++:score.c++; }
+        ball.x=550; ball.y=300; ball.vx=0; ball.vy=0; ball.owner=null;
+    }
+    draw(); requestAnimationFrame(loop);
+}
+
+function draw() {
+    ctx.fillStyle="#1e5c20"; ctx.fillRect(0,0,1100,600);
+    ctx.strokeStyle="white"; ctx.strokeRect(50,50,1000,500);
+    players.forEach(p => {
+        ctx.fillStyle=p.team==='p'?teamCol:'#d00';
+        if(p.name==='GK') ctx.fillStyle='#ff8c00';
+        ctx.fillRect(p.x-13, p.y-10, 26, 28);
+        if(p.isUser){ ctx.strokeStyle=var(--gold); ctx.lineWidth=3; ctx.strokeRect(p.x-16, p.y-32, 32, 54); }
+    });
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2); ctx.fill();
+    document.getElementById('s1').innerText=score.p; document.getElementById('s2').innerText=score.c;
+}
+</script>
+</body>
+</html>
